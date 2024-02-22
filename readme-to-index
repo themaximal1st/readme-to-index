@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+# Check if pandoc is installed
+if ! command -v pandoc &> /dev/null; then
+    echo "pandoc could not be found. Please install it first."
+    exit 1
+fi
+
+# Prompt for user input if arguments are not provided
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 \"Name\" \"Domain\" \"Title\" \"Description\""
+    exit 1
+fi
+
+# Assign script arguments to variables
+NAME="$1"
+DOMAIN="$2"
+TITLE="$3"
+DESCRIPTION="$4"
+URL="https://$DOMAIN/"
+
+# Define directory paths
+ROOT_DIR=$(cd .. && pwd)
+PUBLIC_DIR="$ROOT_DIR/public"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+README_PATH="$ROOT_DIR/README.md"
+INDEX_PATH="$PUBLIC_DIR/index.html"
+
+LOGO_PATH="logo.png"
+SOCIAL_PATH="social.png"
+
+if [ ! -f "$PUBLIC_DIR/$SOCIAL_PATH" ]; then
+    SOCIAL_PATH="$LOGO_PATH"
+fi
+
+SOCIAL_IMG_URL="$URL$SOCIAL_PATH"
+
+CSS_PATH="$SCRIPT_DIR/inputs/style.css"
+SYNTAX_HIGHLIGHTING_THEME_PATH="$SCRIPT_DIR/inputs/syntax-highlighting.theme"
+
+BEFORE_BODY_PATH="$SCRIPT_DIR/outputs/before_body.html"
+cp "$SCRIPT_DIR/inputs/before_body.html" "$BEFORE_BODY_PATH"
+sed -i "" "s/{{NAME}}/$NAME/g" "$BEFORE_BODY_PATH"
+
+AFTER_BODY_PATH="$SCRIPT_DIR/outputs/after_body.html"
+cp "$SCRIPT_DIR/inputs/after_body.html" "$AFTER_BODY_PATH"
+sed -i "" "s/{{NAME}}/$NAME/g" "$AFTER_BODY_PATH"
+
+HEADER_PATH="$SCRIPT_DIR/outputs/header.html"
+cp "$SCRIPT_DIR/inputs/header.html" "$HEADER_PATH"
+sed -i "" "s|{{DOMAIN}}|$DOMAIN|g" "$HEADER_PATH"
+sed -i "" "s|{{URL}}|$URL|g" "$HEADER_PATH"
+sed -i "" "s|{{NAME}}|$NAME|g" "$HEADER_PATH"
+sed -i "" "s|{{TITLE}}|$TITLE|g" "$HEADER_PATH"
+sed -i "" "s|{{SOCIAL_IMG_URL}}|$SOCIAL_IMG_URL|g" "$HEADER_PATH"
+sed -i "" "s|{{DESCRIPTION}}|$DESCRIPTION|g" "$HEADER_PATH"
+
+# Notify start of process
+echo "Creating index.html from README.md"
+
+# Convert README.md to index.html using pandoc
+pandoc -s "$README_PATH" \
+      -o "$INDEX_PATH" \
+      -M title="$TITLE" \
+      -M og:title="$TITLE" \
+      -M description="$DESCRIPTION" \
+      --css "style.css" \
+      --include-before-body "$BEFORE_BODY_PATH" \
+      --include-after-body "$AFTER_BODY_PATH" \
+      --include-in-header "$HEADER_PATH" \
+      --highlight-style "$SYNTAX_HIGHLIGHTING_THEME_PATH"
+
+sed -i "" "s/public\/logo.png/logo.png/g" "$INDEX_PATH"
+
+# Copy the CSS file to the root directory
+echo "Copying style.css to $PUBLIC_DIR"
+cp "$CSS_PATH" "$PUBLIC_DIR/style.css"
+
+echo "Process completed successfully."
