@@ -7,8 +7,8 @@ if ! command -v pandoc &> /dev/null; then
 fi
 
 # Prompt for user input if arguments are not provided
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 \"Name\" \"Domain\" \"Title\" \"Description\""
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 \"Name\" \"Domain\" \"Title\" \"Description\" \"Classes\""
     exit 1
 fi
 
@@ -17,6 +17,7 @@ NAME="$1"
 DOMAIN="$2"
 TITLE="$3"
 DESCRIPTION="$4"
+CLASSES="$5"
 URL="https://$DOMAIN/"
 
 # Define directory paths
@@ -36,12 +37,13 @@ fi
 
 SOCIAL_IMG_URL="$URL$SOCIAL_PATH"
 
-CSS_PATH="$SCRIPT_DIR/inputs/style.css"
+JS_PATH="$SCRIPT_DIR/inputs/app.js"
 SYNTAX_HIGHLIGHTING_THEME_PATH="$SCRIPT_DIR/inputs/syntax-highlighting.theme"
 
 BEFORE_BODY_PATH="$SCRIPT_DIR/outputs/before_body.html"
 cp "$SCRIPT_DIR/inputs/before_body.html" "$BEFORE_BODY_PATH"
 sed -i "" "s/{{NAME}}/$NAME/g" "$BEFORE_BODY_PATH"
+sed -i "" "s/{{CLASSES}}/$CLASSES/g" "$BEFORE_BODY_PATH"
 
 AFTER_BODY_PATH="$SCRIPT_DIR/outputs/after_body.html"
 cp "$SCRIPT_DIR/inputs/after_body.html" "$AFTER_BODY_PATH"
@@ -62,6 +64,7 @@ echo "Creating index.html from README.md"
 # Convert README.md to index.html using pandoc
 pandoc -s "$README_PATH" \
       -o "$INDEX_PATH" \
+      --toc \
       -M title="$TITLE" \
       -M og:title="$TITLE" \
       -M description="$DESCRIPTION" \
@@ -71,10 +74,18 @@ pandoc -s "$README_PATH" \
       --include-in-header "$HEADER_PATH" \
       --highlight-style "$SYNTAX_HIGHLIGHTING_THEME_PATH"
 
-sed -i "" "s/public\/logo.png/logo.png/g" "$INDEX_PATH"
+sed -i "" "s/public\/\(.*\).png/\1.png/g" "$INDEX_PATH"
 
-# Copy the CSS file to the root directory
-echo "Copying style.css to $PUBLIC_DIR"
-cp "$CSS_PATH" "$PUBLIC_DIR/style.css"
+# Building CSS
+echo "Building style.css to $PUBLIC_DIR"
+npx tailwindcss \
+    --config "$SCRIPT_DIR/inputs/tailwind.config.js" \
+    --input "$SCRIPT_DIR/inputs/style.css" \
+    --output "$PUBLIC_DIR/style.css" \
+    --content "$INDEX_PATH"
+
+# Copy the JS file to the root directory
+echo "Copying app.js to $PUBLIC_DIR"
+cp "$JS_PATH" "$PUBLIC_DIR/app.js"
 
 echo "Process completed successfully."
